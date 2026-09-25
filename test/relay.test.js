@@ -161,6 +161,31 @@ async function main() {
     host.terminate(); evil.terminate(); relay.rooms.clear();
   });
 
+  await test('resume take-over works even while the old socket is still open (zombie)', async () => {
+    const host = client(port); await host.open;
+    host.send({ t: 'create', name: 'H' });
+    const hj = await host.wait((m) => m.t === 'joined');
+    const b = client(port); await b.open;
+    b.send({ t: 'join', code: hj.code, name: 'B' });
+    const bj = await b.wait((m) => m.t === 'joined');
+    // Old socket stays OPEN (zombie) — server still sees the player as connected.
+    const b2 = client(port); await b2.open;
+    b2.send({ t: 'resume', code: hj.code, id: bj.id, token: bj.token });
+    const back = await b2.wait((m) => m.t === 'joined');
+    assert.strictEqual(back.id, bj.id, 'take-over joined as the same player id');
+    // The stale socket must get kicked.
+    await new Promise((res, rej) => { b.ws.on('close', (code2) => { assert.strictEqual(code2, 4001); res(); }); setTimeout(() => rej(new Error('stale socket was not closed')), 2000); });
+    // State from the new socket relays; the old one must not receive it.
+    let oldSockGotRelay = false;
+    b.ws.on('message', () => { oldSockGotRelay = true; });
+    host.send({ t: 'state', d: { x: 1 } });
+    const relayed = await b2.wait((m) => m.t === 'from' && m.k === 'state');
+    assert.strictEqual(relayed.d.x, 1);
+    await sleep(100);
+    assert.strictEqual(oldSockGotRelay, false, 'stale socket must not receive room traffic');
+    host.terminate(); b.terminate(); b2.terminate(); relay.rooms.clear();
+  });
+
   await test('host leaving ends the match for everyone', async () => {
     const host = client(port); await host.open;
     host.send({ t: 'create', name: 'H' });

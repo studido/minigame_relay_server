@@ -38,6 +38,11 @@ Error codes: `badCode`, `roomFull`, `badName`, `badResume`, `notHost`, `noRoom`,
   Host migration may come later; for now the group re-joins a new room.
 - A dropped non-host slot is kept for ~1 minute; `resume` with the same
   `code`, `id` and `token` reclaims it. A wrong token gets `badResume`.
+- Resume is a take-over: the token authenticates the player, so a `resume` that
+  arrives while the old socket still looks alive (zombie/close-limbo after a
+  network drop) succeeds and severs the stale socket with close code 4001.
+  Clients must therefore only auto-resume a session they own — explicit create/
+  join actions should start fresh.
 - Rate limit: 50 msgs/s sustained, 120 burst per connection; sustained abuse
   closes the socket. Payload cap 16 KB per message. Keepalives: server pings
   every 25 s; a connection silent for 90 s is terminated.

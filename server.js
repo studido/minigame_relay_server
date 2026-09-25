@@ -134,7 +134,14 @@ function createRelay() {
       }
       // resume after a dropped connection
       const p = room.players.get(m.id);
-      if (!p || p.token !== m.token || p.ws) return err(conn, 'badResume', 'cannot resume that session');
+      if (!p || p.token !== m.token) return err(conn, 'badResume', 'cannot resume that session');
+      if (p.ws) {
+        // The old socket can linger as a zombie after a network drop (the server may
+        // not notice it died for a minute). The 64-bit token proves identity, so hand
+        // the slot to the new socket and sever the stale one.
+        try { p.ws.close(4001, 'replaced'); } catch { /* already closing */ }
+        if (p.conn) p.conn.player = null;
+      }
       attachPlayer(conn, p);
       sendConn(conn, joinedPayload(room, p));
       return broadcastRoster(room);
