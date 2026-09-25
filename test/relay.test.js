@@ -186,6 +186,26 @@ async function main() {
     host.terminate(); b.terminate(); b2.terminate(); relay.rooms.clear();
   });
 
+  await test('join after start works (join-in-progress): joined carries started+seed, traffic flows', async () => {
+    const host = client(port); await host.open;
+    host.send({ t: 'create', name: 'H' });
+    const hj = await host.wait((m) => m.t === 'joined');
+    host.send({ t: 'start', seed: 313 });
+    await host.wait((m) => m.t === 'start');
+    const late = client(port); await late.open;
+    late.send({ t: 'join', code: hj.code, name: 'Late' });
+    const lj = await late.wait((m) => m.t === 'joined');
+    assert.strictEqual(lj.started, true, 'joined reports the match is running');
+    assert.strictEqual(lj.seed, 313, 'joined carries the shared world seed');
+    const roster = await host.wait((m) => m.t === 'roster' && m.players.length === 2);
+    assert.ok(roster);
+    // the late joiner receives live traffic immediately
+    host.send({ t: 'state', d: { jets: [] } });
+    const got = await late.wait((m) => m.t === 'from' && m.from === hj.id);
+    assert.ok(got);
+    host.terminate(); late.terminate(); relay.rooms.clear();
+  });
+
   await test('host leaving ends the match for everyone', async () => {
     const host = client(port); await host.open;
     host.send({ t: 'create', name: 'H' });

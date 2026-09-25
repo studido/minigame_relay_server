@@ -36,6 +36,9 @@ Error codes: `badCode`, `roomFull`, `badName`, `badResume`, `notHost`, `noRoom`,
 
 - If the host's socket drops, the room ends immediately (`ended`, `hostLeft`).
   Host migration may come later; for now the group re-joins a new room.
+- Rooms can be joined even after `start` (join-in-progress): the joiner gets
+  `joined` with `started: true` and the match `seed`, and is expected to jump
+  straight in. Everyone mid-match gets the `roster` so they can add the new jet.
 - A dropped non-host slot is kept for ~1 minute; `resume` with the same
   `code`, `id` and `token` reclaims it. A wrong token gets `badResume`.
 - Resume is a take-over: the token authenticates the player, so a `resume` that
