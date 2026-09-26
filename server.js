@@ -51,6 +51,7 @@ function createRelay() {
   function rosterOf(room) {
     return [...room.players.values()].map((p) => ({
       id: p.id, name: p.name, host: p.id === room.hostId, ready: p.ready, connected: !!p.ws,
+      team: p.team == null ? null : p.team,
     }));
   }
   function broadcastRoster(room) { broadcast(room, { t: 'roster', players: rosterOf(room) }); }
@@ -165,6 +166,12 @@ function createRelay() {
       }
       case 'ready': {
         p.ready = !!m.v;
+        return broadcastRoster(room);
+      }
+      case 'team': {
+        // Team pick: 0 or 1, null = auto-balance. Allowed lobby and mid-match; the
+        // clients apply the in-match effect (respawn on the new team's side).
+        p.team = m.v === 0 || m.v === 1 ? m.v : null;
         return broadcastRoster(room);
       }
       case 'leave':

@@ -229,6 +229,32 @@ async function main() {
     await new Promise((res, rej) => { a.ws.on('close', res); setTimeout(() => rej(new Error('expected close')), 2000); });
   });
 
+  await test('team pick broadcasts in roster (0/1/null), works lobby and mid-match', async () => {
+    const host = client(port); await host.open;
+    host.send({ t: 'create', name: 'H' });
+    const hj = await host.wait((m) => m.t === 'joined');
+    const b = client(port); await b.open;
+    b.send({ t: 'join', code: hj.code, name: 'B' });
+    const bj = await b.wait((m) => m.t === 'joined');
+    assert.strictEqual(bj.players.find((p) => p.id === hj.id).team, null, 'new players start unassigned (auto)');
+    host.drain();
+    host.send({ t: 'team', v: 1 });
+    let r = await b.wait((m) => m.t === 'roster' && m.players.find((p) => p.id === hj.id).team === 1);
+    assert.ok(r, 'roster carries team after pick');
+    b.send({ t: 'team', v: 0 });
+    r = await host.wait((m) => m.t === 'roster' && m.players.find((p) => p.id === bj.id).team === 0);
+    assert.ok(r);
+    host.send({ t: 'start', seed: 313 });
+    await host.wait((m) => m.t === 'start');
+    b.send({ t: 'team', v: 1 }); // mid-match switch still broadcasts
+    r = await host.wait((m) => m.t === 'roster' && m.players.find((p) => p.id === bj.id).team === 1);
+    assert.ok(r, 'team switch lands mid-match');
+    host.send({ t: 'team', v: 'east' }); // garbage = auto
+    r = await b.wait((m) => m.t === 'roster' && m.players.find((p) => p.id === hj.id).team === null);
+    assert.ok(r, 'invalid team value resets to auto');
+    host.terminate(); b.terminate(); relay.rooms.clear();
+  });
+
   await test('/health responds ok', async () => {
     const http = require('node:http');
     const body = await new Promise((resolve, reject) => {

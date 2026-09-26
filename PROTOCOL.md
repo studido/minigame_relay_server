@@ -22,7 +22,7 @@ it manages rooms and relays. Unknown `t` values from room members are dropped.
 | Message | Meaning |
 |---|---|
 | `{t:'joined', code, id, token, hostId, settings, seed, started, players}` | Room joined (keep `id`/`token` for resume) |
-| `{t:'roster', players:[{id,name,host,ready,connected}]}` | Room membership changed |
+| `{t:'roster', players:[{id,name,host,ready,connected,team}]}` | Room membership / ready / `team` changed |
 | `{t:'settings', d}` | Host changed settings |
 | `{t:'start', seed}` | Match started, use this terrain/world seed |
 | `{t:'from', from, k:'state'\|'event', d}` | Relayed message from player `from` |
